@@ -219,6 +219,10 @@ content to include.
   **exclude-tags**: Excludes text between tags in the Markdown. This is a `|` 
   separated string of tags to exclude. Tag of `"test"` will ignore text surrounded 
   by two instances of `<!--test-->`.
+- <a name="include-tags" href="#include-tags">#</a>
+  **include-tags**: Includes only the text between tags in the Markdown. This is 
+  a `|` separated string of tags to include. Tag of `"test"` looks for text 
+  surrounded by two instances of `<!--test-->`.
 
 ##### Examples
 
@@ -321,6 +325,10 @@ Includes the content of a file or a group of files.
   **exclude-tags**: Excludes text between tags in the Markdown. This is a `|` 
   separated string of tags to exclude. Tag of `"test"` will ignore text surrounded 
   by two instances of `<!--test-->`.
+- <a name="include-tags" href="#include-tags">#</a>
+  **include-tags**: Includes only the text between tags in the Markdown. This is 
+  a `|` separated string of tags to include. Tag of `"test"` looks for text 
+  surrounded by two instances of `<!--test-->`.
 
 ##### Examples
 

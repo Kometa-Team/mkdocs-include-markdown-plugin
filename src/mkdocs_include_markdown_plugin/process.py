@@ -503,6 +503,24 @@ def exclude_tags(content: str, exclude_list: list):
     return content
 
 
+def include_tags(content: str, include_list: list):
+    final_content = ""
+    while "<!--" in content:
+        result = re.search(r"(<!--.*?-->)(.*)", content, flags=re.DOTALL)
+        end = result.group(1)
+        content = result.group(2)
+        result = re.search(fr"(.*?){end}(.*)", content, flags=re.DOTALL)
+        if not result:
+            continue
+        include = result.group(1)
+        content = result.group(2)
+        if end[4:-3] in include_list:
+            if final_content:
+                final_content += '\n'
+            final_content += include.removeprefix("\n").removesuffix("\n")
+    return final_content
+
+
 def filter_paths(
         filepaths: Iterator[str] | list[str],
         ignore_paths: list[str],
