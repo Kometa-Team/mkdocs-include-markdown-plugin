@@ -497,6 +497,12 @@ def replace_tags(content: str, replacements: dict):
     return content
 
 
+def exclude_tags(content: str, exclude_list: list):
+    for exclude in exclude_list:
+        content = re.sub(fr"<!--{exclude}-->.*?<!--{exclude}-->", "", content, flags=re.DOTALL)
+    return content
+
+
 def filter_paths(
         filepaths: Iterator[str] | list[str],
         ignore_paths: list[str],

@@ -274,6 +274,21 @@ def get_file_content(  # noqa: PLR0913, PLR0915
         else:
             replace_tags = defaults['replace-tags']
 
+        exclude_tags_match = ARGUMENT_REGEXES['exclude-tags']().search(arguments_string)
+        if exclude_tags_match:
+            exclude_tags = parse_string_argument(exclude_tags_match)
+            if exclude_tags is None:
+                location = process.file_lineno_message(
+                    page_src_path, docs_dir, directive_lineno(),
+                )
+                raise PluginError(
+                    "Invalid empty 'exclude_tags' argument in 'include-markdown'"
+                    f' directive at  {location}',
+                )
+            exclude_tags = exclude_tags.split("|")
+        else:
+            exclude_tags = defaults['exclude-tags']
+
         encoding_match = ARGUMENT_REGEXES['encoding']().search(
             arguments_string)
         if encoding_match:
@@ -334,6 +349,9 @@ def get_file_content(  # noqa: PLR0913, PLR0915
 
             if replace_tags:
                 new_text_to_include = process.replace_tags(new_text_to_include, replace_tags)
+
+            if exclude_tags:
+                new_text_to_include = process.exclude_tags(new_text_to_include, exclude_tags)
 
             # trailing newlines right stripping
             if not bool_options['trailing-newlines'].value:
@@ -557,6 +575,21 @@ def get_file_content(  # noqa: PLR0913, PLR0915
         else:
             replace_tags = defaults['replace-tags']
 
+        exclude_tags_match = ARGUMENT_REGEXES['exclude-tags']().search(arguments_string)
+        if exclude_tags_match:
+            exclude_tags = parse_string_argument(exclude_tags_match)
+            if exclude_tags is None:
+                location = process.file_lineno_message(
+                    page_src_path, docs_dir, directive_lineno(),
+                )
+                raise PluginError(
+                    "Invalid empty 'exclude_tags' argument in 'include-markdown'"
+                    f' directive at  {location}',
+                )
+            exclude_tags = exclude_tags.split("|")
+        else:
+            exclude_tags = defaults['exclude-tags']
+
         encoding_match = ARGUMENT_REGEXES['encoding']().search(
             arguments_string)
         if encoding_match:
@@ -657,6 +690,9 @@ def get_file_content(  # noqa: PLR0913, PLR0915
 
             if replace_tags:
                 new_text_to_include = process.replace_tags(new_text_to_include, replace_tags)
+
+            if exclude_tags:
+                new_text_to_include = process.exclude_tags(new_text_to_include, exclude_tags)
 
             # trailing newlines right stripping
             if not bool_options['trailing-newlines'].value:
@@ -798,6 +834,7 @@ def on_page_markdown(
             'end': config.end,
             'replace': config.replace,
             'replace-tags': config.replace_tags,
+            'exclude-tags': config.exclude_tags,
         },
         Settings(
             exclude=config.exclude,

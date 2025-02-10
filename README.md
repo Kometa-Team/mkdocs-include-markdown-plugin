@@ -215,6 +215,10 @@ content to include.
   **replace-tags**: Replaces text between tags in the Markdown. This translates 
   a json string to a Dict where the keys are the tags to be replaced by the values. 
   Tag of `"test"` will replace text surrounded by two instances of `<!--test-->`.
+- <a name="exclude-tags" href="#exclude-tags">#</a>
+  **exclude-tags**: Excludes text between tags in the Markdown. This is a `|` 
+  separated string of tags to exclude. Tag of `"test"` will ignore text surrounded 
+  by two instances of `<!--test-->`.
 
 ##### Examples
 
@@ -313,6 +317,10 @@ Includes the content of a file or a group of files.
   **replace-tags**: Replaces text between tags in the Markdown. This translates 
   a json string to a Dict where the keys are the tags to be replaced by the values. 
   Tag of `"test"` will replace text surrounded by two instances of `<!--test-->`.
+- <a name="exclude-tags" href="#exclude-tags">#</a>
+  **exclude-tags**: Excludes text between tags in the Markdown. This is a `|` 
+  separated string of tags to exclude. Tag of `"test"` will ignore text surrounded 
+  by two instances of `<!--test-->`.
 
 ##### Examples
 
