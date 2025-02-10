@@ -485,6 +485,12 @@ def rstrip_trailing_newlines(content: str) -> str:
     return content
 
 
+def replace_text(content: str, replacements: dict):
+    for old_text, new_text in replacements.items():
+        content = content.replace(old_text, new_text)
+    return content
+
+
 def filter_paths(
         filepaths: Iterator[str] | list[str],
         ignore_paths: list[str],

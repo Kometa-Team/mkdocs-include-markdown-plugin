@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import functools
 import html
+import json
 import os
 import re
 import textwrap
@@ -81,6 +82,7 @@ def get_file_content(  # noqa: PLR0913, PLR0915
         cumulative_heading_offset: int = 0,
         files_watcher: FilesWatcher | None = None,
         http_cache: Cache | None = None,
+        replace_super: dict | None = None,
 ) -> str:
     """Return the content of the file to include."""
     if settings.exclude:
@@ -213,6 +215,35 @@ def get_file_content(  # noqa: PLR0913, PLR0915
         else:
             end = defaults['end']
 
+        replace_match = ARGUMENT_REGEXES['replace']().search(arguments_string)
+        if replace_match:
+            replace = parse_string_argument(replace_match)
+            if replace is None:
+                location = process.file_lineno_message(
+                    page_src_path, docs_dir, directive_lineno(),
+                )
+                raise PluginError(
+                    "Invalid empty 'replace' argument in 'include-markdown'"
+                    f' directive at  {location}',
+                )
+            try:
+                replace = json.loads(replace, strict=False)
+                if not isinstance(replace, dict):
+                    raise ValueError(f'object not a dictionary {replace}')
+                if replace_super:
+                    for k, v in replace_super.items():
+                        replace[k] = v
+            except ValueError as e:
+                location = process.file_lineno_message(
+                    page_src_path, docs_dir, directive_lineno(),
+                )
+                raise PluginError(
+                    "Invalid 'replace' argument in 'include-markdown'"
+                    f' directive at  {location}: {e}',
+                )
+        else:
+            replace = defaults['replace']
+
         encoding_match = ARGUMENT_REGEXES['encoding']().search(
             arguments_string)
         if encoding_match:
@@ -250,6 +281,9 @@ def get_file_content(  # noqa: PLR0913, PLR0915
                     if expected_but_any_found[i] and not expected_not_found[i]:
                         expected_but_any_found[i] = False
 
+            if replace:
+                new_text_to_include = process.replace_text(new_text_to_include, replace)
+
             # nested includes
             if bool_options['recursive'].value:
                 new_text_to_include = get_file_content(
@@ -261,7 +295,11 @@ def get_file_content(  # noqa: PLR0913, PLR0915
                     settings,
                     files_watcher=files_watcher,
                     http_cache=http_cache,
+                    replace_super=replace,
                 )
+
+            if replace:
+                new_text_to_include = process.replace_text(new_text_to_include, replace)
 
             # trailing newlines right stripping
             if not bool_options['trailing-newlines'].value:
@@ -427,6 +465,35 @@ def get_file_content(  # noqa: PLR0913, PLR0915
         else:
             end = defaults['end']
 
+        replace_match = ARGUMENT_REGEXES['replace']().search(arguments_string)
+        if replace_match:
+            replace = parse_string_argument(replace_match)
+            if replace is None:
+                location = process.file_lineno_message(
+                    page_src_path, docs_dir, directive_lineno(),
+                )
+                raise PluginError(
+                    "Invalid empty 'replace' argument in 'include-markdown'"
+                    f' directive at  {location}',
+                )
+            try:
+                replace = json.loads(replace, strict=False)
+                if not isinstance(replace, dict):
+                    raise ValueError(f'object not a dictionary {replace}')
+                if replace_super:
+                    for k, v in replace_super.items():
+                        replace[k] = v
+            except ValueError as e:
+                location = process.file_lineno_message(
+                    page_src_path, docs_dir, directive_lineno(),
+                )
+                raise PluginError(
+                    "Invalid 'replace' argument in 'include-markdown'"
+                    f' directive at  {location}: {e}',
+                )
+        else:
+            replace = defaults['replace']
+
         encoding_match = ARGUMENT_REGEXES['encoding']().search(
             arguments_string)
         if encoding_match:
@@ -504,6 +571,9 @@ def get_file_content(  # noqa: PLR0913, PLR0915
                     if expected_but_any_found[i] and not expected_not_found[i]:
                         expected_but_any_found[i] = False
 
+            if replace:
+                new_text_to_include = process.replace_text(new_text_to_include, replace)
+
             # nested includes
             if bool_options['recursive'].value:
                 new_text_to_include = get_file_content(
@@ -515,7 +585,11 @@ def get_file_content(  # noqa: PLR0913, PLR0915
                     settings,
                     files_watcher=files_watcher,
                     http_cache=http_cache,
+                    replace_super=replace,
                 )
+
+            if replace:
+                new_text_to_include = process.replace_text(new_text_to_include, replace)
 
             # trailing newlines right stripping
             if not bool_options['trailing-newlines'].value:
@@ -655,6 +729,7 @@ def on_page_markdown(
             'recursive': config.recursive,
             'start': config.start,
             'end': config.end,
+            'replace': config.replace,
         },
         Settings(
             exclude=config.exclude,
