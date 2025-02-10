@@ -491,6 +491,12 @@ def replace_text(content: str, replacements: dict):
     return content
 
 
+def replace_tags(content: str, replacements: dict):
+    for tag, new_text in replacements.items():
+        content = re.sub(fr"<!--{tag}-->.*?<!--{tag}-->", new_text, content, flags=re.DOTALL)
+    return content
+
+
 def filter_paths(
         filepaths: Iterator[str] | list[str],
         ignore_paths: list[str],

@@ -41,6 +41,7 @@ if TYPE_CHECKING:  # pragma: no cover
             'start': str | None,
             'end': str | None,
             'replace': dict | None,
+            'replace-tags': dict | None,
         },
     )
 
@@ -97,6 +98,7 @@ ARGUMENT_REGEXES = {
     'exclude': functools.partial(str_arg, 'exclude'),
     'encoding': functools.partial(str_arg, 'encoding'),
     'replace': functools.partial(str_arg, 'replace'),
+    'replace-tags': functools.partial(str_arg, 'replace-tags'),
 
     # bool
     'comments': functools.partial(arg, 'comments'),

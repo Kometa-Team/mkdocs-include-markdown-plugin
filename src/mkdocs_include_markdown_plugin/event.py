@@ -83,6 +83,7 @@ def get_file_content(  # noqa: PLR0913, PLR0915
         files_watcher: FilesWatcher | None = None,
         http_cache: Cache | None = None,
         replace_super: dict | None = None,
+        replace_tags_super: dict | None = None,
 ) -> str:
     """Return the content of the file to include."""
     if settings.exclude:
@@ -244,6 +245,35 @@ def get_file_content(  # noqa: PLR0913, PLR0915
         else:
             replace = defaults['replace']
 
+        replace_tags_match = ARGUMENT_REGEXES['replace-tags']().search(arguments_string)
+        if replace_tags_match:
+            replace_tags = parse_string_argument(replace_tags_match)
+            if replace_tags is None:
+                location = process.file_lineno_message(
+                    page_src_path, docs_dir, directive_lineno(),
+                )
+                raise PluginError(
+                    "Invalid empty 'replace-tags' argument in 'include-markdown'"
+                    f' directive at  {location}',
+                )
+            try:
+                replace_tags = json.loads(replace_tags, strict=False)
+                if not isinstance(replace_tags, dict):
+                    raise ValueError(f'object not a dictionary {replace_tags}')
+                if replace_tags_super:
+                    for k, v in replace_tags_super.items():
+                        replace_tags[k] = v
+            except ValueError as e:
+                location = process.file_lineno_message(
+                    page_src_path, docs_dir, directive_lineno(),
+                )
+                raise PluginError(
+                    "Invalid 'replace-tags' argument in 'include-markdown'"
+                    f' directive at  {location}: {e}',
+                )
+        else:
+            replace_tags = defaults['replace-tags']
+
         encoding_match = ARGUMENT_REGEXES['encoding']().search(
             arguments_string)
         if encoding_match:
@@ -296,10 +326,14 @@ def get_file_content(  # noqa: PLR0913, PLR0915
                     files_watcher=files_watcher,
                     http_cache=http_cache,
                     replace_super=replace,
+                    replace_tags_super=replace_tags,
                 )
 
             if replace:
                 new_text_to_include = process.replace_text(new_text_to_include, replace)
+
+            if replace_tags:
+                new_text_to_include = process.replace_tags(new_text_to_include, replace_tags)
 
             # trailing newlines right stripping
             if not bool_options['trailing-newlines'].value:
@@ -494,6 +528,35 @@ def get_file_content(  # noqa: PLR0913, PLR0915
         else:
             replace = defaults['replace']
 
+        replace_tags_match = ARGUMENT_REGEXES['replace-tags']().search(arguments_string)
+        if replace_tags_match:
+            replace_tags = parse_string_argument(replace_tags_match)
+            if replace_tags is None:
+                location = process.file_lineno_message(
+                    page_src_path, docs_dir, directive_lineno(),
+                )
+                raise PluginError(
+                    "Invalid empty 'replace-tags' argument in 'include-markdown'"
+                    f' directive at  {location}',
+                )
+            try:
+                replace_tags = json.loads(replace_tags, strict=False)
+                if not isinstance(replace_tags, dict):
+                    raise ValueError(f'object not a dictionary {replace_tags}')
+                if replace_tags_super:
+                    for k, v in replace_tags_super.items():
+                        replace_tags[k] = v
+            except ValueError as e:
+                location = process.file_lineno_message(
+                    page_src_path, docs_dir, directive_lineno(),
+                )
+                raise PluginError(
+                    "Invalid 'replace-tags' argument in 'include-markdown'"
+                    f' directive at  {location}: {e}',
+                )
+        else:
+            replace_tags = defaults['replace-tags']
+
         encoding_match = ARGUMENT_REGEXES['encoding']().search(
             arguments_string)
         if encoding_match:
@@ -586,10 +649,14 @@ def get_file_content(  # noqa: PLR0913, PLR0915
                     files_watcher=files_watcher,
                     http_cache=http_cache,
                     replace_super=replace,
+                    replace_tags_super=replace_tags,
                 )
 
             if replace:
                 new_text_to_include = process.replace_text(new_text_to_include, replace)
+
+            if replace_tags:
+                new_text_to_include = process.replace_tags(new_text_to_include, replace_tags)
 
             # trailing newlines right stripping
             if not bool_options['trailing-newlines'].value:
@@ -730,6 +797,7 @@ def on_page_markdown(
             'start': config.start,
             'end': config.end,
             'replace': config.replace,
+            'replace-tags': config.replace_tags,
         },
         Settings(
             exclude=config.exclude,

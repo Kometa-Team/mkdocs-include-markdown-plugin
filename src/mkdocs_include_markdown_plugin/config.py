@@ -23,6 +23,7 @@ class PluginConfig(Config):  # noqa: D101
     start = Optional(MkType(str))
     end = Optional(MkType(str))
     replace = Optional(MkType(str))
+    replace_tags = Optional(MkType(str))
     exclude = ListOfItems(MkType(str), default=[])
     cache = MkType(int, default=0)
     cache_dir = MkType(str, default='')

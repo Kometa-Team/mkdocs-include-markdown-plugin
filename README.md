@@ -211,6 +211,10 @@ content to include.
 - <a name="replace" href="#replace">#</a>
   **replace**: Replaces text in the Markdown. This translates a json string 
   to a Dict where the keys are replaced by the values. 
+- <a name="replace-tags" href="#replace-tags">#</a>
+  **replace-tags**: Replaces text between tags in the Markdown. This translates 
+  a json string to a Dict where the keys are the tags to be replaced by the values. 
+  Tag of `"test"` will replace text surrounded by two instances of `<!--test-->`.
 
 ##### Examples
 
@@ -305,6 +309,10 @@ Includes the content of a file or a group of files.
 - <a name="replace" href="#replace">#</a>
   **replace**: Replaces text in the Markdown. This translates a json string 
   to a Dict where the keys are replaced by the values. 
+- <a name="replace-tags" href="#replace-tags">#</a>
+  **replace-tags**: Replaces text between tags in the Markdown. This translates 
+  a json string to a Dict where the keys are the tags to be replaced by the values. 
+  Tag of `"test"` will replace text surrounded by two instances of `<!--test-->`.
 
 ##### Examples
 
