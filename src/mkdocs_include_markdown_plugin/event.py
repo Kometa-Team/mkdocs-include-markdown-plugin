@@ -64,6 +64,22 @@ def build_placeholder(
     return f'{INLINE_PLACEHOLDER_PREFIX}{directive_prefix}{num}{ETX}'
 
 
+def escape_placeholders(text: str) -> str:
+    """Escape placeholder marker characters already present in `text`.
+
+    Prevents included/user-supplied content that happens to contain the
+    STX/ETX marker bytes from colliding with placeholders inserted later,
+    which could otherwise let included content masquerade as a
+    placeholder and be substituted incorrectly.
+    """
+    return text.replace(STX, f'\\{STX}').replace(ETX, f'\\{ETX}')
+
+
+def unescape_placeholders(text: str) -> str:
+    """Reverse `escape_placeholders` after placeholder substitution."""
+    return text.replace(f'\\{STX}', STX).replace(f'\\{ETX}', ETX)
+
+
 @dataclass
 class Settings:  # noqa: D101
     exclude: list[str] | None
@@ -101,6 +117,7 @@ def get_file_content(  # noqa: PLR0913, PLR0915
     else:
         settings_ignore_paths = []
 
+    markdown = escape_placeholders(markdown)
     new_found_include_contents: list[tuple[str, str]] = []
     new_found_include_markdown_contents: list[tuple[str, str]] = []
 
@@ -829,7 +846,7 @@ def get_file_content(  # noqa: PLR0913, PLR0915
         markdown = markdown.replace(placeholder, text, 1)
     for placeholder, text in new_found_include_markdown_contents:
         markdown = markdown.replace(placeholder, text, 1)
-    return markdown
+    return unescape_placeholders(markdown)
 
 
 def on_page_markdown(
