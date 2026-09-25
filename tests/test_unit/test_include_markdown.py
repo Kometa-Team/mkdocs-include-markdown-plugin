@@ -2,7 +2,8 @@
 
 import pytest
 
-from mkdocs_include_markdown_plugin.event import build_placeholder, on_page_markdown
+from mkdocs_include_markdown_plugin.event import on_page_markdown
+from mkdocs_include_markdown_plugin.placeholders import build_placeholder
 
 
 @pytest.mark.parametrize(
@@ -488,6 +489,26 @@ Example data
             [],
             id='heading-offset=-2',
         ),
+        pytest.param(
+            '''# Header
+
+{%
+  include-markdown "{filepath}"
+  heading-offset=-1
+%}
+''',
+            '''#### This should be a third level heading.
+
+Example data''',
+            '''# Header
+
+### This should be a third level heading.
+
+Example data
+''',
+            [],
+            id='heading-offset=-1',
+        ),
 
         # Markdown heading positive offset beyond rational limits
         pytest.param(
@@ -761,7 +782,7 @@ Link to [second level heading](#second-level-heading).
         pytest.param(
             '''# Header
 
-''' + build_placeholder(0, 'include-markdown') + '''
+''' + build_placeholder(0) + '''
 
 {%
   include-markdown "{filepath}"
@@ -770,7 +791,7 @@ Link to [second level heading](#second-level-heading).
             'Content to include',
             '''# Header
 
-''' + build_placeholder(0, 'include-markdown') + '''
+''' + build_placeholder(0) + '''
 
 Content to include
 ''',

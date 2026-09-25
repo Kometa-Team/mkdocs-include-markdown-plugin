@@ -28,6 +28,12 @@
               "type": "string",
               "default": "utf-8"
             },
+            "order": {
+              "markdownDescription": "https://github.com/mondeja/mkdocs-include-markdown-plugin#include_encoding",
+              "type": "string",
+              "default": "alpha-path",
+              "pattern": "^-?(?:(?:alpha|natural)(?:-(?:path|name|extension))?|system|random|size|mtime|ctime|atime)?$"
+            },
             "preserve_includer_indent": {
               "markdownDescription": "https://github.com/mondeja/mkdocs-include-markdown-plugin#include_preserve-includer-indent",
               "type": "boolean",
@@ -46,7 +52,7 @@
             "comments": {
               "markdownDescription": "https://github.com/mondeja/mkdocs-include-markdown-plugin#include-markdown_comments",
               "type": "boolean",
-              "default": true
+              "default": false
             },
             "rewrite_relative_urls": {
               "markdownDescription": "https://github.com/mondeja/mkdocs-include-markdown-plugin#include-markdown_trailing-newlines",

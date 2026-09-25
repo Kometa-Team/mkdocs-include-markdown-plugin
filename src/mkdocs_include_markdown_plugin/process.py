@@ -15,6 +15,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from mkdocs_include_markdown_plugin.cache import Cache
+    from mkdocs_include_markdown_plugin.directive import OrderOption
 
 
 # Markdown regular expressions. Taken from the original Markdown.pl by John
@@ -33,7 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover
 # previous to Python3.11. Also, these nested brackets can be recursive in the
 # Perl implementation but this doesn't seem possible in Python, the current
 # implementation only reaches two levels.
-MARKDOWN_LINK_REGEX = re.compile(  # noqa: DUO138
+MARKDOWN_LINK_REGEX = re.compile(
     r'''
         (                 # wrap whole match in $1
           (?<!!)          # don't match images - negative lookbehind
@@ -173,10 +174,12 @@ def transform_p_by_p_skipping_codeblocks(  # noqa: PLR0912, PLR0915
     _maybe_icodeblock_lines: list[str] = []
     _previous_line_was_empty = False
 
-    lines, current_paragraph = ([], '')
+    lines = []
+    current_paragraph_lines: list[str] = []
 
     def process_current_paragraph() -> None:
-        lines.extend(func(current_paragraph).splitlines(keepends=True))
+        lines.extend(func(''.join(current_paragraph_lines),
+                          ).splitlines(keepends=True))
 
     # The next implementation takes into account that indented code
     # blocks must be surrounded by newlines as per the CommonMark
@@ -190,25 +193,24 @@ def transform_p_by_p_skipping_codeblocks(  # noqa: PLR0912, PLR0915
             if lstripped_line.startswith(('```', '~~~')):
                 _current_fcodeblock_delimiter = lstripped_line[:3]
                 process_current_paragraph()
-                current_paragraph = ''
+                current_paragraph_lines = []
                 lines.append(line)
             elif line.startswith('    '):
                 if not lstripped_line or _maybe_icodeblock_lines:
                     # maybe enter indented codeblock
                     _maybe_icodeblock_lines.append(line)
                 else:
-                    current_paragraph += line
+                    current_paragraph_lines.append(line)
             elif _maybe_icodeblock_lines:
                 process_current_paragraph()
-                current_paragraph = ''
+                current_paragraph_lines = []
                 if not _previous_line_was_empty:
                     # wasn't an indented code block
-                    for line_ in _maybe_icodeblock_lines:
-                        current_paragraph += line_
+                    current_paragraph_lines.extend(_maybe_icodeblock_lines)
                     _maybe_icodeblock_lines = []
-                    current_paragraph += line
+                    current_paragraph_lines.append(line)
                     process_current_paragraph()
-                    current_paragraph = ''
+                    current_paragraph_lines = []
                 else:
                     # exit indented codeblock
                     for line_ in _maybe_icodeblock_lines:
@@ -216,7 +218,7 @@ def transform_p_by_p_skipping_codeblocks(  # noqa: PLR0912, PLR0915
                     _maybe_icodeblock_lines = []
                     lines.append(line)
             else:
-                current_paragraph += line
+                current_paragraph_lines.append(line)
             _previous_line_was_empty = not lstripped_line
         else:
             lines.append(line)
@@ -229,14 +231,13 @@ def transform_p_by_p_skipping_codeblocks(  # noqa: PLR0912, PLR0915
         if not _previous_line_was_empty:
             # at EOF
             process_current_paragraph()
-            current_paragraph = ''
-            for line_ in _maybe_icodeblock_lines:
-                current_paragraph += line_
+            current_paragraph_lines = []
+            current_paragraph_lines.extend(_maybe_icodeblock_lines)
             process_current_paragraph()
-            current_paragraph = ''
+            current_paragraph_lines = []
         else:
             process_current_paragraph()
-            current_paragraph = ''
+            current_paragraph_lines = []
             for line_ in _maybe_icodeblock_lines:
                 lines.append(line_)
     else:
@@ -249,9 +250,10 @@ def transform_line_by_line_skipping_codeblocks(
         markdown: str,
         func: Callable[[str], str],
 ) -> str:
-    """Apply a transformation line by line in a Markdown text using a function.
+    """Apply a transformation line by line in a Markdown text using a function,.
 
-    Skip fenced codeblock lines, where the transformation never is applied.
+    Skip fenced codeblock lines and empty lines, where the transformation
+    is never applied.
 
     Indented codeblocks are not taken into account because in the practice
     this function is only used for transformations of heading prefixes. See
@@ -263,13 +265,15 @@ def transform_line_by_line_skipping_codeblocks(
 
     lines = []
     for line in io.StringIO(markdown):
+        lstripped_line = line.lstrip()
         if not _current_fcodeblock_delimiter:
-            lstripped_line = line.lstrip()
-            if lstripped_line.startswith(('```', '~~~')):
-                _current_fcodeblock_delimiter = lstripped_line[:3]
+            if lstripped_line.startswith('```'):
+                _current_fcodeblock_delimiter = '```'
+            elif lstripped_line.startswith('~~~'):
+                _current_fcodeblock_delimiter = '~~~'
             else:
                 line = func(line)  # noqa: PLW2901
-        elif line.lstrip().startswith(_current_fcodeblock_delimiter):
+        elif lstripped_line.startswith(_current_fcodeblock_delimiter):
             _current_fcodeblock_delimiter = ''
         lines.append(line)
 
@@ -287,20 +291,12 @@ def rewrite_relative_urls(
     ``source_path`` will still work when inserted into a file at
     ``destination_path``.
     """
-    from urllib.parse import urlparse, urlunparse
-
     def rewrite_url(url: str) -> str:
-        if is_url(url):
-            return url
-
-        scheme, netloc, path, params, query, fragment = urlparse(url)
-
-        # absolute or mail
-        if path.startswith('/') or scheme == 'mailto':
+        if is_url(url) or is_absolute_path(url) or is_anchor(url):
             return url
 
         new_path = os.path.relpath(
-            os.path.join(os.path.dirname(source_path), path),
+            os.path.join(os.path.dirname(source_path), url),
             os.path.dirname(destination_path),
         )
 
@@ -308,18 +304,14 @@ def rewrite_relative_urls(
         new_path = new_path.replace('\\', '/').replace('//', '/')
 
         try:
-            if path[-1] == '/':
+            if url[-1] == '/':
                 # the above operation removes a trailing slash,
                 # so add it back if it was present in the input
                 new_path += '/'
         except IndexError:  # pragma: no cover
             pass
 
-        # ensure that links to the same file are not rewritten
-        if new_path == '.':
-            new_path = ''
-
-        return urlunparse((scheme, netloc, new_path, params, query, fragment))
+        return new_path
 
     def found_href(m: re.Match[str], url_group_index: int = -1) -> str:
         match_start, match_end = m.span(0)
@@ -436,17 +428,19 @@ def filter_inclusions(  # noqa: PLR0912
 def _transform_negative_offset_func_factory(
         offset: int,
 ) -> Callable[[str], str]:
-    heading_prefix = '#' * abs(offset)
+    abs_offset = abs(offset)
 
     def transform(line: str) -> str:
         try:
             if line[0] != '#':
                 return line
         except IndexError:  # pragma: no cover
+            # Note for pragma: all lines include a newline
+            # so this exception is never raised in tests.
             return line
-        if line.startswith(heading_prefix):
-            return heading_prefix + line.lstrip('#')
-        return '#' + line.lstrip('#')
+        stripped_line = line.lstrip('#')
+        new_n_headings = max(len(line) - len(stripped_line) - abs_offset, 1)
+        return '#' * new_n_headings + stripped_line
 
     return transform
 
@@ -458,11 +452,11 @@ def _transform_positive_offset_func_factory(
 
     def transform(line: str) -> str:
         try:
-            prefix = line[0]
+            if line[0] != '#':
+                return line
         except IndexError:  # pragma: no cover
             return line
-        else:
-            return heading_prefix + line if prefix == '#' else line
+        return heading_prefix + line
 
     return transform
 
@@ -537,12 +531,12 @@ def filter_paths(
 
     Args:
         filepaths (list): Set of source paths to filter.
-        ignore_paths (list): Paths that must not be included in the response.
+        ignore_paths (list): Paths that are ignored.
 
     Returns:
         list: Non filtered paths ordered alphabetically.
     """
-    response = []
+    result = []
     for filepath in filepaths:
         # ignore by filepath
         if filepath in ignore_paths:
@@ -557,34 +551,138 @@ def filter_paths(
         # ignore if is a directory
         try:
             if not stat.S_ISDIR(os.stat(filepath).st_mode):
-                response.append(filepath)
+                result.append(filepath)
         except (FileNotFoundError, OSError):  # pragma: no cover
             continue
-    response.sort()
-    return response
+    return result
+
+
+def natural_sort_key(s: str) -> list[Any]:
+    """Key function for natural sorting of strings."""
+    return [int(text) if text.isdigit() else text.lower()
+            for text in re.split(r'(\d+)', s)]
+
+
+def sort_paths(paths: list[str], order: OrderOption) -> list[str]:
+    """Sort a list of paths in-place according to an order option."""
+    ascending, order_type, order_by = order
+
+    if order_type == 'random':
+        import random  # noqa: PLC0415
+
+        random.shuffle(paths)
+        return paths
+
+    key = None
+    if order_type == 'alpha':
+        if order_by == 'name':
+            def key(p: str) -> str:
+                return os.path.basename(p)
+        elif order_by == 'extension':
+            def key(p: str) -> str:
+                return os.path.splitext(p)[1]
+    elif order_type == 'natural':
+        if order_by == 'extension':
+            def key(p: str) -> tuple:  # type: ignore
+                return (
+                    natural_sort_key(os.path.splitext(p)[1]),
+                    natural_sort_key(os.path.basename(p)),
+                )
+        elif order_by == 'name':
+            def key(p: str) -> str:
+                return natural_sort_key(os.path.basename(p))  # type: ignore
+        else:
+            key = natural_sort_key  # type: ignore
+    elif order_type == 'size':
+        def key(p: str) -> int:  # type: ignore
+            return os.path.getsize(p)
+        ascending = not ascending  # larger files first
+    elif order_type == 'mtime':
+        def key(p: str) -> float:  # type: ignore
+            return os.path.getmtime(p)
+    elif order_type == 'ctime':
+        def key(p: str) -> float:  # type: ignore
+            return os.path.getctime(p)
+    elif order_type == 'atime':
+        def key(p: str) -> float:  # type: ignore
+            return os.path.getatime(p)
+    paths.sort(key=key, reverse=ascending)
+    return paths
+
+
+def _is_valid_url_scheme_char(c: str) -> bool:
+    """Determine is a character is a valid URL scheme character.
+
+    Valid characters are:
+
+    ```
+    abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-.
+    ```
+    """
+    codepoint = ord(c)
+    A = 65
+    Z = 90
+    a = 97
+    z = 122
+    zero = 48
+    nine = 57
+    dot = 46
+    plus = 43
+    minus = 45
+    return (
+        A <= codepoint <= Z
+        or a <= codepoint <= z
+        or zero <= codepoint <= nine
+        or codepoint in (plus, minus, dot)
+    )
 
 
 def is_url(string: str) -> bool:
-    """Determine if a string is an URL."""
-    if ':' not in string:  # fast path
+    """Determine if a string is an URL.
+
+    The implementation has been adapted from `urllib.urlparse`.
+    """
+    i = string.find(':')
+    if i <= 1:  # noqa: PLR2004 -> exclude C: or D: on Windows
         return False
-    from urllib.parse import urlparse
 
     try:
-        result = urlparse(string)
-        return all([result.scheme, result.netloc])
-    except ValueError:  # pragma: no cover
+        return all(_is_valid_url_scheme_char(string[j]) for j in range(i))
+    except (IndexError, ValueError):  # pragma: no cover
         return False
 
 
 def is_relative_path(string: str) -> bool:
     """Check if a string looks like a relative path."""
-    return string.startswith(('./', '../'))
+    try:
+        return (
+            string[0] == '.'
+            and (
+                string[1] == '/'
+                or (string[1] == '.' and string[2] == '/')
+            )
+        )
+    except IndexError:  # pragma: no cover
+        return False
 
 
 def is_absolute_path(string: str) -> bool:
     """Check if a string looks like an absolute path."""
-    return string.startswith((os.sep, '/'))
+    try:
+        return string[0] == '/' or string[0] == os.sep
+    except IndexError:  # pragma: no cover
+        return False
+
+
+def is_anchor(string: str) -> bool:
+    """Check if a string looks like an anchor.
+
+    An anchor is a string that starts with `#` and is not a relative path.
+    """
+    try:
+        return string[0] == '#'
+    except IndexError:  # pragma: no cover
+        return False
 
 
 def read_file(file_path: str, encoding: str) -> str:
@@ -601,7 +699,7 @@ def read_url(
         encoding: str = 'utf-8',
 ) -> Any:
     """Read an HTTP location and return its content."""
-    from urllib.request import Request, urlopen
+    from urllib.request import Request, urlopen  # noqa: PLC0415
 
     if http_cache is not None:
         cached_content = http_cache.get_(url, encoding)
@@ -617,14 +715,12 @@ def read_url(
 def safe_os_path_relpath(path: str, start: str) -> str:
     """Return the relative path of a file from a start directory.
 
-    Safe version of `os.path.relpath` that catches `ValueError` exceptions
-    on Windows and returns the original path in case of error.
+    Safe version of `os.path.relpath` that catches possible `ValueError`
+    exceptions and returns the original path in case of error.
     On Windows, `ValueError` is raised when `path` and `start` are on
     different drives.
     """
-    if os.name != 'nt':  # pragma: nt no cover
-        return os.path.relpath(path, start)
-    try:  # pragma: nt cover
+    try:
         return os.path.relpath(path, start)
     except ValueError:  # pragma: no cover
         return path

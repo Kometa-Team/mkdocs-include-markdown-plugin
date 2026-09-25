@@ -61,6 +61,7 @@ plugins:
       start: <!--start-->
       end: <!--end-->
       recursive: true
+      order: alpha-path
 ```
 
 #### `opening_tag` and `closing_tag`
@@ -141,10 +142,24 @@ plugins:
         include: replace
 ```
 
+<!-- mdpo-disable-next-line -->
+
+#### `include_from_url`
+
+Allow including content from URLs.
+
+```yaml
+plugins:
+  - include-markdown:
+      include_from_url: true
+```
+
 ### Reference
 
 This plugin provides two directives, one to include Markdown files and another
 to include files of any type.
+
+#### Common arguments
 
 Paths of included files can be either:
 
@@ -164,6 +179,56 @@ single `'` quotes, which can be escaped prepending them a `\` character as
 The arguments **start** and **end** may contain usual (Python-style) escape
 sequences like `\n` to match against newlines.
 
+- <a name="include_start" href="#include_start">#</a>
+  **start**: Delimiter that marks the beginning of the content to include.
+- <a name="include_end" href="#include_end">#</a>
+  **end**: Delimiter that marks the end of the content to include.
+- <a name="include_preserve-includer-indent" href="#include_preserve-includer-indent">#</a>
+  **preserve-includer-indent** (_true_): When this option is enabled (default),
+  every line of the content to include is indented with the same number of
+  spaces used to indent the includer `{% %}` template. Possible values are
+  `true` and `false`.
+- <a name="include_dedent" href="#include_dedent">#</a>
+  **dedent** (_false_): If enabled, the included content will be dedented.
+- <a name="include_exclude" href="#include_exclude">#</a>
+  **exclude**: Specify with a glob which files should be ignored. Only useful
+  when passing globs to include multiple files.
+- <a name="include_trailing-newlines" href="#include_trailing-newlines">#</a>
+  **trailing-newlines** (_true_): When this option is disabled, the trailing newlines
+  found in the content to include are stripped. Possible values are `true` and `false`.
+- <a name="include_recursive" href="#include_recursive">#</a>
+  **recursive** (_true_): When this option is disabled, included files are not
+  processed for recursive includes. Possible values are `true` and `false`.
+- <a name="include_order" href="#include_order">#</a>
+  **order** (_'alpha-path'_): Define the order in which multiple files are included
+  when using globs. Possible values are:
+  - A combination of an optional order type and an optional order by separated
+    by a hyphen (`-`), and optionally prefixed by a hyphen (`-`) to indicate
+    ascending order. If an order type or an order by is not specified, the defaults
+    are used. It follows the form:
+    `[-]<order_type>-<order_by>` where:
+    - **Order type**:
+      - `'alpha'` (default): Alphabetical order.
+      - `'natural'`: Natural order, so that e.g. `file2.md` comes before `file10.md`.
+    - **Order by**:
+      - `'path'` (default): Order by full file path.
+      - `'name'`: Order by file name only.
+      - `'extension'`: Order by file extension.
+  - A combination of an optional prefix hyphen to denote ascending order and one
+    of the following values in the form `[-]<value>` where `<value>` is one of:
+    - `'size'`: Order by file size.
+    - `'mtime'`: Order by file modification time.
+    - `'ctime'`: Order by file creation time (or the last metadata change time
+      on Unix systems).
+    - `'atime'`: Order by file last access time.
+    - `'system'`: Order provided by the operating system. This is the same as not
+      specifying any order and relying on the default order of the filesystem.
+      This may be different between operating systems, so use it with care.
+  - `'random'`: Random order.
+- <a name="include_encoding" href="#include_encoding">#</a>
+  **encoding** (_'utf-8'_): Specify the encoding of the included file.
+  If not defined `'utf-8'` will be used.
+
 <!-- mdpo-disable-next-line -->
 
 #### **`include-markdown`**
@@ -171,29 +236,6 @@ sequences like `\n` to match against newlines.
 Includes Markdown files content, optionally using two delimiters to filter the
 content to include.
 
-- <a name="include-markdown_start" href="#include-markdown_start">#</a>
-  **start**: Delimiter that marks the beginning of the content to include.
-- <a name="include-markdown_end" href="#include-markdown_end">#</a>
-  **end**: Delimiter that marks the end of the content to include.
-- <a name="include-markdown_preserve-includer-indent" href="#include-markdown_preserve-includer-indent">#</a>
-  **preserve-includer-indent** (_true_): When this option is enabled (default),
-  every line of the content to include is indented with the same number of
-  spaces used to indent the includer `{% %}` template. Possible values are
-  `true` and `false`.
-- <a name="include-markdown_dedent" href="#include-markdown_dedent">#</a>
-  **dedent** (_false_): If enabled, the included content will be dedented.
-- <a name="include-markdown_exclude" href="#include-markdown_exclude">#</a>
-  **exclude**: Specify with a glob which files should be ignored. Only useful
-  when passing globs to include multiple files.
-- <a name="include-markdown_trailing-newlines" href="#include-markdown_trailing-newlines">#</a>
-  **trailing-newlines** (_true_): When this option is disabled, the trailing newlines
-  found in the content to include are stripped. Possible values are `true` and `false`.
-- <a name="include-markdown_recursive" href="#include-markdown_recursive">#</a>
-  **recursive** (_true_): When this option is disabled, included files are not
-  processed for recursive includes. Possible values are `true` and `false`.
-- <a name="include-markdown_encoding" href="#include-markdown_encoding">#</a>
-  **encoding** (_'utf-8'_): Specify the encoding of the included file.
-  If not defined `'utf-8'` will be used.
 - <a name="include-markdown_rewrite-relative-urls" href="#include-markdown_rewrite-relative-urls">#</a>
   **rewrite-relative-urls** (_true_): When this option is enabled (default),
   Markdown links and images in the content that are specified by a relative URL
@@ -278,11 +320,19 @@ content to include.
 {%
     include-markdown "**"
     exclude="./{index,LICENSE}.md"
+    order="name"
 %}
 ```
 
 ```jinja
 {% include-markdown '/escap\'ed/single-quotes/in/file\'/name.md' %}
+```
+
+```jinja
+{%
+    include-markdown "**"
+    order="-natural-extension"
+%}
 ```
 
 <!-- mdpo-disable-next-line -->
@@ -291,29 +341,6 @@ content to include.
 
 Includes the content of a file or a group of files.
 
-- <a name="include_start" href="#include_start">#</a>
-  **start**: Delimiter that marks the beginning of the content to include.
-- <a name="include_end" href="#include_end">#</a>
-  **end**: Delimiter that marks the end of the content to include.
-- <a name="include_preserve-includer-indent" href="#include_preserve-includer-indent">#</a>
-  **preserve-includer-indent** (_true_): When this option is enabled (default),
-  every line of the content to include is indented with the same number of
-  spaces used to indent the includer `{% %}` template. Possible values are
-  `true` and `false`.
-- <a name="include_dedent" href="#include_dedent">#</a>
-  **dedent** (_false_): If enabled, the included content will be dedented.
-- <a name="include_exclude" href="#include_exclude">#</a>
-  **exclude**: Specify with a glob which files should be ignored. Only useful
-  when passing globs to include multiple files.
-- <a name="include_trailing-newlines" href="#include_trailing-newlines">#</a>
-  **trailing-newlines** (_true_): When this option is disabled, the trailing newlines
-  found in the content to include are stripped. Possible values are `true` and `false`.
-- <a name="include_recursive" href="#include_recursive">#</a>
-  **recursive** (_true_): When this option is disabled, included files are not
-  processed for recursive includes. Possible values are `true` and `false`.
-- <a name="include_encoding" href="#include_encoding">#</a>
-  **encoding** (_'utf-8'_): Specify the encoding of the included file.
-  If not defined `'utf-8'` will be used.
 - <a name="replace" href="#replace">#</a>
   **replace**: Replaces text in the Markdown. This translates a json string 
   to a Dict where the keys are replaced by the values. 
@@ -364,6 +391,7 @@ Includes the content of a file or a group of files.
 {%
     include '**'
     exclude='./*.md'
+    order='random'
 %}
 ```
 
